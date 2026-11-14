@@ -14,6 +14,7 @@
       font-family: Geist, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
       background: #f1efeb;
       color: #171719;
+      font-size: calc(16px * var(--font-scale, 1));
     }
     * {
       box-sizing: border-box;
@@ -22,23 +23,590 @@
     html,
     body {
       width: 100%;
-      height: 100%;
+      min-height: 100%;
       margin: 0;
-      overflow: hidden;
+      overflow-x: hidden;
     }
 
     body {
-      display: grid;
-      place-items: center;
       background: #f1efeb;
+      font-size: 1rem;
+      line-height: 1.5;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    button {
+      color: inherit;
     }
 
     canvas {
-      display: block;
+      display: none;
       width: min(100vmin, 100vw, 1440px);
       height: min(100vmin, 100vw, 1440px);
       touch-action: none;
       cursor: none;
+    }
+
+    #lab-view {
+      width: min(100% - 40px, 1240px);
+      margin: 0 auto;
+      padding: 24px 0 56px;
+    }
+
+    body.showcase {
+      display: grid;
+      width: 100%;
+      height: 100%;
+      min-height: 100vh;
+      overflow: hidden;
+      place-items: center;
+    }
+
+    body.showcase #lab-view {
+      display: none;
+    }
+
+    body.showcase canvas {
+      display: block;
+    }
+
+    .site-header,
+    .header-actions,
+    .font-tools,
+    .panel-heading,
+    .mode-switch,
+    .transport,
+    .control-heading,
+    .range-label,
+    .activity-actions,
+    .record-actions {
+      display: flex;
+      align-items: center;
+    }
+
+    .site-header {
+      justify-content: space-between;
+      gap: 20px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid #d9d6d1;
+    }
+
+    .brand {
+      font-size: .9rem;
+      font-weight: 700;
+      letter-spacing: .03em;
+    }
+
+    .header-actions {
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 12px;
+    }
+
+    .font-tools {
+      gap: 6px;
+      padding: 4px;
+      border: 1px solid #d9d6d1;
+      border-radius: 12px;
+      background: rgba(255, 254, 250, .75);
+    }
+
+    .font-tools span {
+      padding: 0 6px;
+      color: #615e59;
+      font-size: .82rem;
+    }
+
+    .font-tools button,
+    .button,
+    .mode-switch button,
+    .answer-options button {
+      min-height: 42px;
+      padding: 8px 14px;
+      border: 1px solid #d4d0ca;
+      border-radius: 10px;
+      background: #fffefa;
+      cursor: pointer;
+    }
+
+    .font-tools button {
+      min-width: 42px;
+      padding: 6px 10px;
+      font-weight: 700;
+    }
+
+    .button:hover,
+    .font-tools button:hover,
+    .mode-switch button:hover,
+    .answer-options button:hover {
+      border-color: #58207e;
+    }
+
+    button:focus-visible,
+    input:focus-visible {
+      outline: 3px solid rgba(88, 32, 126, .35);
+      outline-offset: 2px;
+    }
+
+    .button-primary {
+      border-color: #19191c;
+      background: #19191c;
+      color: #fffefa;
+      font-weight: 600;
+    }
+
+    .button-primary:hover {
+      border-color: #58207e;
+      background: #58207e;
+    }
+
+    .hero {
+      padding: 34px 0 24px;
+    }
+
+    .eyebrow {
+      color: #756f67;
+      font-size: .82rem;
+      font-weight: 700;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    .hero h1 {
+      margin: 8px 0 4px;
+      font-size: clamp(2rem, 4vw, 3rem);
+      line-height: 1.2;
+      letter-spacing: -.04em;
+    }
+
+    .hero p {
+      max-width: 720px;
+      margin: 0;
+      color: #66625d;
+      font-size: 1.05rem;
+    }
+
+    .lab-grid,
+    .learning-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.25fr) minmax(320px, .75fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .panel {
+      min-width: 0;
+      padding: 22px;
+      border: 1px solid rgba(25, 25, 28, .08);
+      border-radius: 18px;
+      background: #fffefa;
+      box-shadow: 0 12px 32px rgba(30, 28, 26, .045);
+    }
+
+    .panel-heading {
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .panel-heading h2,
+    .panel-heading h3 {
+      margin: 0;
+      font-size: 1.2rem;
+      line-height: 1.3;
+    }
+
+    .panel-heading p {
+      margin: 4px 0 0;
+      color: #77736d;
+      font-size: .9rem;
+    }
+
+    .mode-switch {
+      gap: 4px;
+      padding: 4px;
+      border-radius: 12px;
+      background: #f1efeb;
+    }
+
+    .mode-switch button {
+      min-height: 38px;
+      padding: 6px 12px;
+      border-color: transparent;
+      background: transparent;
+      font-size: .9rem;
+    }
+
+    .mode-switch button[aria-pressed="true"] {
+      border-color: #19191c;
+      background: #19191c;
+      color: #fffefa;
+    }
+
+    .visual-wrap {
+      overflow: hidden;
+      border-radius: 14px;
+      background: #f6f4f0;
+    }
+
+    #oscillator {
+      display: block;
+      width: 100%;
+      height: auto;
+      min-height: 220px;
+    }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .metric {
+      min-width: 0;
+      padding: 12px;
+      border-radius: 12px;
+      background: #f6f4f0;
+    }
+
+    .metric span,
+    .metric strong {
+      display: block;
+    }
+
+    .metric span {
+      color: #6d6963;
+      font-size: .82rem;
+    }
+
+    .metric strong {
+      margin-top: 2px;
+      font-size: 1.05rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .transport {
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .transport output {
+      margin-left: auto;
+      color: #6d6963;
+      font-size: .9rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .equation {
+      margin-top: 14px;
+      padding: 12px 14px;
+      border-left: 3px solid #58207e;
+      border-radius: 0 10px 10px 0;
+      background: #f4eff7;
+      font-size: .94rem;
+    }
+
+    .control-heading {
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .control-heading h2 {
+      margin: 0;
+      font-size: 1.2rem;
+    }
+
+    .control-group {
+      margin: 0;
+      padding: 0;
+      border: 0;
+    }
+
+    .control-group legend {
+      margin-bottom: 14px;
+      color: #716c65;
+      font-size: .88rem;
+      font-weight: 600;
+    }
+
+    .range-control {
+      margin: 18px 0 22px;
+    }
+
+    .range-label {
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 7px;
+      font-size: .95rem;
+      font-weight: 600;
+    }
+
+    .range-label output {
+      color: #58207e;
+      font-variant-numeric: tabular-nums;
+    }
+
+    input[type="range"] {
+      display: block;
+      width: 100%;
+      accent-color: #58207e;
+      cursor: pointer;
+    }
+
+    .range-help {
+      margin-top: 4px;
+      color: #77736d;
+      font-size: .8rem;
+    }
+
+    .energy-box {
+      margin-top: 18px;
+      padding-top: 14px;
+      border-top: 1px solid #e6e2dc;
+    }
+
+    .energy-box h3 {
+      margin: 0 0 10px;
+      font-size: 1rem;
+    }
+
+    .energy-row {
+      display: grid;
+      grid-template-columns: 24px 1fr 54px;
+      gap: 8px;
+      align-items: center;
+      margin: 8px 0;
+      color: #625e58;
+      font-size: .85rem;
+    }
+
+    .energy-track {
+      height: 10px;
+      overflow: hidden;
+      border-radius: 10px;
+      background: #e9e6e1;
+    }
+
+    .energy-fill {
+      width: 0;
+      height: 100%;
+      border-radius: inherit;
+      transition: width 80ms linear;
+    }
+
+    #kinetic-fill {
+      background: #4daca3;
+    }
+
+    #potential-fill {
+      background: #58207e;
+    }
+
+    .learning-grid {
+      margin-top: 18px;
+    }
+
+    #motion-chart {
+      display: block;
+      width: 100%;
+      height: auto;
+      margin-top: 8px;
+      border-radius: 12px;
+      background: #f8f6f2;
+    }
+
+    .chart-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      color: #625e58;
+      font-size: .84rem;
+    }
+
+    .legend-item {
+      display: inline-flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .legend-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #58207e;
+    }
+
+    .legend-dot.velocity {
+      background: #4daca3;
+    }
+
+    .legend-dot.acceleration {
+      background: #19191c;
+    }
+
+    .activity-card {
+      padding: 14px;
+      border-radius: 14px;
+      background: #f6f4f0;
+    }
+
+    .activity-actions {
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .activity-step {
+      margin: 0 0 8px;
+      color: #756f67;
+      font-size: .82rem;
+      font-weight: 700;
+      letter-spacing: .04em;
+    }
+
+    .activity-card h3 {
+      margin: 0;
+      font-size: 1.08rem;
+      line-height: 1.4;
+    }
+
+    .activity-card p:not(.activity-step) {
+      margin: 8px 0 14px;
+      color: #625e58;
+      font-size: .9rem;
+    }
+
+    .answer-options {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 6px;
+    }
+
+    .answer-options button {
+      padding: 7px 5px;
+      font-size: .82rem;
+    }
+
+    .answer-options button[aria-pressed="true"] {
+      border-color: #58207e;
+      background: #eee6f3;
+      color: #40135f;
+      font-weight: 700;
+    }
+
+    #activity-result {
+      min-height: 3.3em;
+      margin-top: 12px;
+      color: #514d48;
+      font-size: .9rem;
+    }
+
+    #activity-result[data-correct="true"] {
+      color: #16756d;
+      font-weight: 700;
+    }
+
+    #activity-result[data-correct="false"] {
+      color: #9c463f;
+    }
+
+    .record-panel {
+      margin-top: 18px;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .88rem;
+      text-align: left;
+    }
+
+    th,
+    td {
+      padding: 10px 8px;
+      border-bottom: 1px solid #e6e2dc;
+      white-space: nowrap;
+    }
+
+    th {
+      color: #6d6963;
+      font-weight: 600;
+    }
+
+    td {
+      font-variant-numeric: tabular-nums;
+    }
+
+    .empty-record {
+      color: #77736d;
+      text-align: center;
+    }
+
+    .record-actions {
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      clip-path: inset(50%);
+    }
+
+    @media (max-width: 880px) {
+      .lab-grid,
+      .learning-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 560px) {
+      #lab-view {
+        width: min(100% - 24px, 1240px);
+        padding-top: 12px;
+      }
+
+      .site-header {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .header-actions {
+        width: 100%;
+        justify-content: space-between;
+      }
+
+      .panel {
+        padding: 16px;
+      }
+
+      .metric-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .panel-heading {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .answer-options {
+        grid-template-columns: 1fr;
+      }
     }
 
     .sr-only {
@@ -55,6 +623,198 @@
   </style>
 </head>
 <body>
+  <main id="lab-view">
+    <header class="site-header">
+      <div class="brand">MOTION LAB <span aria-hidden="true">/</span> 고급물리학</div>
+      <div class="header-actions">
+        <div class="font-tools" role="group" aria-label="글자 크기 조절">
+          <span>글자 크기</span>
+          <button id="font-smaller" type="button" aria-label="글자 작게">A−</button>
+          <button id="font-reset" type="button" aria-label="기본 글자 크기">기본</button>
+          <button id="font-larger" type="button" aria-label="글자 크게">A+</button>
+        </div>
+        <button id="showcase-toggle" class="button" type="button">모션 쇼케이스 보기</button>
+      </div>
+    </header>
+
+    <section class="hero" aria-labelledby="page-title">
+      <div class="eyebrow">CHAPTER 06 · OSCILLATION</div>
+      <h1 id="page-title">진동을 직접 실험해요.</h1>
+      <p>조건을 바꾸고, 운동과 그래프가 어떻게 달라지는지 관찰한 뒤 예측을 확인해 보세요.</p>
+    </section>
+
+    <div class="lab-grid">
+      <section class="panel visual-panel" aria-labelledby="visual-heading">
+        <div class="panel-heading">
+          <div>
+            <h2 id="visual-heading">실시간 운동 모형</h2>
+            <p id="visual-description">재생을 누르거나 조건을 바꾸어 운동을 관찰하세요.</p>
+          </div>
+          <div class="mode-switch" role="group" aria-label="운동 모형 선택">
+            <button type="button" data-mode="spring" aria-pressed="true">용수철</button>
+            <button type="button" data-mode="pendulum" aria-pressed="false">단진자</button>
+          </div>
+        </div>
+
+        <div class="visual-wrap">
+          <svg id="oscillator" viewBox="0 0 640 360" role="img" aria-labelledby="visual-title visual-description">
+            <title id="visual-title">실시간 진동 모형</title>
+            <g id="spring-group">
+              <rect x="220" y="34" width="200" height="14" rx="4" fill="#19191c"></rect>
+              <line x1="320" y1="50" x2="320" y2="310" stroke="#cbc6be" stroke-dasharray="5 6"></line>
+              <path id="spring-coil" d="" fill="none" stroke="#58207e" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"></path>
+              <rect id="spring-mass" x="260" y="190" width="120" height="64" rx="12" fill="#58207e"></rect>
+              <text id="spring-mass-label" x="320" y="230" text-anchor="middle" fill="#fffefa" font-size="21" font-weight="700">m</text>
+              <text x="430" y="225" fill="#77736d" font-size="14">평형점 x = 0</text>
+              <text id="spring-position" x="320" y="292" text-anchor="middle" fill="#58207e" font-size="16" font-weight="700"></text>
+            </g>
+            <g id="pendulum-group" hidden>
+              <path id="pendulum-arc" d="" fill="none" stroke="#d8d3cc" stroke-width="2" stroke-dasharray="5 6"></path>
+              <line x1="320" y1="54" x2="320" y2="280" stroke="#cbc6be" stroke-width="2" stroke-dasharray="5 6"></line>
+              <line id="pendulum-rod" x1="320" y1="54" x2="320" y2="230" stroke="#19191c" stroke-width="5" stroke-linecap="round"></line>
+              <circle cx="320" cy="54" r="10" fill="#19191c"></circle>
+              <circle id="pendulum-bob" cx="320" cy="230" r="27" fill="#4daca3"></circle>
+              <text id="pendulum-angle" x="344" y="102" fill="#16756d" font-size="15" font-weight="700"></text>
+            </g>
+          </svg>
+        </div>
+
+        <div class="metric-grid" aria-label="현재 운동량">
+          <div class="metric"><span>주기 T</span><strong><output id="period-value">—</output></strong></div>
+          <div class="metric"><span>진동수 f</span><strong><output id="frequency-value">—</output></strong></div>
+          <div class="metric"><span id="position-label">변위 x</span><strong><output id="position-value">—</output></strong></div>
+          <div class="metric"><span id="velocity-label">속도 v</span><strong><output id="velocity-value">—</output></strong></div>
+            <div class="metric"><span id="acceleration-label">가속도 a</span><strong><output id="acceleration-value">—</output></strong></div>
+        </div>
+
+        <div class="transport">
+          <button id="play-toggle" class="button button-primary" type="button">▶ 재생</button>
+          <button id="reset-motion" class="button" type="button">처음으로</button>
+          <output id="elapsed-value" aria-label="경과 시간">0.00 s</output>
+        </div>
+        <div id="model-equation" class="equation" aria-live="polite"></div>
+      </section>
+
+      <aside class="panel controls-panel" aria-labelledby="controls-heading">
+        <div class="control-heading">
+          <h2 id="controls-heading">실험 조건</h2>
+          <span class="eyebrow">조절하면 바로 반영</span>
+        </div>
+
+        <label class="range-control" for="mass-input">
+          <span class="range-label"><span id="mass-label">질량 m</span><output id="mass-output">1.00 kg</output></span>
+          <input id="mass-input" type="range" min="0.25" max="3" step="0.05" value="1" aria-describedby="mass-help">
+          <span id="mass-help" class="range-help">단진자 모형에서는 질량을 바꾸어도 주기는 변하지 않습니다.</span>
+        </label>
+
+        <fieldset id="spring-controls" class="control-group">
+          <legend>용수철 운동</legend>
+          <label class="range-control" for="spring-input">
+            <span class="range-label"><span>용수철 상수 k</span><output id="spring-output">20 N/m</output></span>
+            <input id="spring-input" type="range" min="8" max="48" step="1" value="20">
+          </label>
+          <label class="range-control" for="amplitude-input">
+            <span class="range-label"><span>진폭 A</span><output id="amplitude-output">0.72 m</output></span>
+            <input id="amplitude-input" type="range" min="0.2" max="1.4" step="0.01" value="0.72">
+          </label>
+        </fieldset>
+
+        <fieldset id="pendulum-controls" class="control-group" hidden>
+          <legend>단진자 운동</legend>
+          <label class="range-control" for="length-input">
+            <span class="range-label"><span>실의 길이 L</span><output id="length-output">0.75 m</output></span>
+            <input id="length-input" type="range" min="0.25" max="2" step="0.01" value="0.75">
+          </label>
+          <label class="range-control" for="angle-input">
+            <span class="range-label"><span>초기 각도 θ₀</span><output id="angle-output">18°</output></span>
+            <input id="angle-input" type="range" min="5" max="70" step="1" value="18">
+            <span class="range-help">큰 각도에서는 작은 각도 근사와 실제 주기를 비교합니다.</span>
+          </label>
+        </fieldset>
+
+        <div class="energy-box" aria-labelledby="energy-heading">
+          <h3 id="energy-heading">에너지 교환</h3>
+          <div class="energy-row"><span>K</span><div class="energy-track"><div id="kinetic-fill" class="energy-fill"></div></div><output id="kinetic-value">—</output></div>
+          <div class="energy-row"><span>U</span><div class="energy-track"><div id="potential-fill" class="energy-fill"></div></div><output id="potential-value">—</output></div>
+          <p id="energy-note" class="range-help">운동 에너지와 위치 에너지의 합은 일정합니다.</p>
+        </div>
+      </aside>
+    </div>
+
+    <div class="learning-grid">
+      <section class="panel" aria-labelledby="chart-heading">
+        <div class="panel-heading">
+          <div>
+            <h2 id="chart-heading">시간에 따른 운동</h2>
+            <p id="chart-description">두 주기 동안의 위치, 속도, 가속도를 비교합니다.</p>
+          </div>
+          <div class="chart-legend" aria-label="그래프 범례">
+            <span class="legend-item"><i class="legend-dot"></i><span id="legend-position">x 위치</span></span>
+            <span class="legend-item"><i class="legend-dot velocity"></i><span id="legend-velocity">v 속도</span></span>
+            <span class="legend-item"><i class="legend-dot acceleration"></i><span id="legend-acceleration">a 가속도</span></span>
+          </div>
+        </div>
+        <svg id="motion-chart" viewBox="0 0 720 260" role="img" aria-labelledby="chart-heading chart-description">
+          <line x1="56" y1="32" x2="56" y2="214" stroke="#bdb8b0"></line>
+          <line x1="56" y1="123" x2="690" y2="123" stroke="#c9c4bc"></line>
+          <line x1="56" y1="214" x2="690" y2="214" stroke="#bdb8b0"></line>
+          <line x1="373" y1="32" x2="373" y2="214" stroke="#e1ddd6" stroke-dasharray="4 5"></line>
+          <text x="56" y="238" fill="#77736d" font-size="13">0</text>
+          <text id="chart-half-period" x="214" y="238" text-anchor="middle" fill="#77736d" font-size="13">T/2</text>
+          <text id="chart-one-period" x="373" y="238" text-anchor="middle" fill="#77736d" font-size="13">T</text>
+          <text id="chart-two-period" x="690" y="238" text-anchor="end" fill="#77736d" font-size="13">2T</text>
+          <path id="curve-position" d="" fill="none" stroke="#58207e" stroke-width="3"></path>
+          <path id="curve-velocity" d="" fill="none" stroke="#4daca3" stroke-width="3"></path>
+          <path id="curve-acceleration" d="" fill="none" stroke="#19191c" stroke-width="3"></path>
+          <line id="chart-cursor" x1="56" y1="30" x2="56" y2="214" stroke="#77736d" stroke-dasharray="3 4"></line>
+        </svg>
+      </section>
+
+      <section class="panel" aria-labelledby="activity-heading">
+        <div class="panel-heading">
+          <div>
+            <h2 id="activity-heading">탐구 활동</h2>
+            <p>먼저 예측하고, 조건을 바꿔 근거를 확인하세요.</p>
+          </div>
+        </div>
+        <div class="activity-card">
+          <p class="activity-step">1 예측하기　→　2 실험하기　→　3 설명하기</p>
+          <h3 id="activity-question">질량을 2배로 하면 용수철의 주기는 어떻게 될까요?</h3>
+          <p id="activity-hint">용수철 상수 k는 그대로 두고 생각해 보세요.</p>
+          <div class="answer-options" role="group" aria-label="주기 변화 예측">
+            <button type="button" data-answer="shorter" aria-pressed="false">짧아진다</button>
+            <button type="button" data-answer="same" aria-pressed="false">같다</button>
+            <button type="button" data-answer="longer" aria-pressed="false">길어진다</button>
+          </div>
+          <div class="activity-actions">
+            <button id="check-answer" class="button button-primary" type="button">예측 확인</button>
+            <button id="compare-condition" class="button" type="button">두 조건 비교</button>
+          </div>
+          <output id="activity-result" role="status" aria-live="polite">예측을 고른 다음 확인을 눌러 보세요.</output>
+        </div>
+      </section>
+    </div>
+
+    <section class="panel record-panel" aria-labelledby="records-heading">
+      <div class="panel-heading">
+        <div>
+          <h2 id="records-heading">나의 실험 기록</h2>
+          <p>현재 조건과 측정값을 표에 남겨 보고서에 활용하세요.</p>
+        </div>
+        <div class="record-actions">
+          <button id="record-measurement" class="button button-primary" type="button">현재 값 기록</button>
+          <button id="export-records" class="button" type="button">CSV 내려받기</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th scope="col">번호</th><th scope="col">모형</th><th scope="col">조건</th><th scope="col">주기 T</th><th scope="col">역학적 에너지</th></tr></thead>
+          <tbody id="record-list"><tr id="empty-record"><td colspan="5" class="empty-record">기록이 없습니다. 조건을 바꾸고 측정값을 추가해 보세요.</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
   <canvas id="stage" width="1440" height="1440" role="application" aria-label="용수철 진동과 단진자 운동을 조작하는 물리 시뮬레이션"></canvas>
   <audio id="music" preload="none" loop src="https://assets.mixkit.co/music/130/130.mp3"></audio>
   <input id="accessible-search" class="sr-only" type="text" aria-label="진동 개념 검색" autocomplete="off">
@@ -1185,6 +1945,459 @@
         getState: () => ({ ...controls, playing, cycleTime: timeNow(performance.now()), dragStretch })
       };
       requestAnimationFrame(frameLoop);
+    })();
+  </script>
+  <script>
+    (() => {
+      "use strict";
+
+      const $ = (selector) => document.querySelector(selector);
+      const lab = {
+        mode: "spring",
+        mass: 1,
+        spring: 20,
+        amplitude: 0.72,
+        length: 0.75,
+        angle: 18,
+        time: 0,
+        playing: false,
+        startedAt: 0,
+        frameId: 0,
+        answer: null,
+        records: []
+      };
+      const gravity = 9.81;
+      const fontSize = { min: 0.9, max: 1.5, step: 0.1, value: 1 };
+      let chartCacheKey = "";
+      let chartCachePaths = [];
+      const motion = {
+        springGroup: $("#spring-group"),
+        pendulumGroup: $("#pendulum-group"),
+        springCoil: $("#spring-coil"),
+        springMass: $("#spring-mass"),
+        springMassLabel: $("#spring-mass-label"),
+        springPosition: $("#spring-position"),
+        pendulumRod: $("#pendulum-rod"),
+        pendulumBob: $("#pendulum-bob"),
+        pendulumAngle: $("#pendulum-angle"),
+        pendulumArc: $("#pendulum-arc"),
+        period: $("#period-value"),
+        frequency: $("#frequency-value"),
+        position: $("#position-value"),
+        velocity: $("#velocity-value"),
+        acceleration: $("#acceleration-value"),
+        kinetic: $("#kinetic-value"),
+        potential: $("#potential-value"),
+        kineticFill: $("#kinetic-fill"),
+        potentialFill: $("#potential-fill"),
+        equation: $("#model-equation"),
+        chartPosition: $("#curve-position"),
+        chartVelocity: $("#curve-velocity"),
+        chartAcceleration: $("#curve-acceleration"),
+        chartCursor: $("#chart-cursor")
+      };
+
+      function pendulumPeriod(length, angleDegrees) {
+        const angle = angleDegrees * Math.PI / 180;
+        const correction = 1 + angle * angle / 16 + 11 * Math.pow(angle, 4) / 3072;
+        return 2 * Math.PI * Math.sqrt(length / gravity) * correction;
+      }
+
+      function integratePendulum(time, length, angleDegrees, period) {
+        const initialAngle = angleDegrees * Math.PI / 180;
+        let remaining = ((time % (2 * period)) + 2 * period) % (2 * period);
+        let angle = initialAngle;
+        let angularVelocity = 0;
+        const derivative = (theta, velocity) => ({
+          angle: velocity,
+          velocity: -(gravity / length) * Math.sin(theta)
+        });
+
+        while (remaining > 0) {
+          const step = Math.min(0.01, remaining);
+          const first = derivative(angle, angularVelocity);
+          const second = derivative(
+            angle + first.angle * step / 2,
+            angularVelocity + first.velocity * step / 2
+          );
+          const third = derivative(
+            angle + second.angle * step / 2,
+            angularVelocity + second.velocity * step / 2
+          );
+          const fourth = derivative(
+            angle + third.angle * step,
+            angularVelocity + third.velocity * step
+          );
+          angle += step / 6 * (first.angle + 2 * second.angle + 2 * third.angle + fourth.angle);
+          angularVelocity += step / 6 *
+            (first.velocity + 2 * second.velocity + 2 * third.velocity + fourth.velocity);
+          remaining -= step;
+        }
+        return { angle, angularVelocity };
+      }
+
+      function sample() {
+        if (lab.mode === "spring") {
+          const omega = Math.sqrt(lab.spring / lab.mass);
+          const phase = omega * lab.time;
+          const position = lab.amplitude * Math.cos(phase);
+          const velocity = -lab.amplitude * omega * Math.sin(phase);
+          const acceleration = -omega * omega * position;
+          const potential = 0.5 * lab.spring * position * position;
+          const kinetic = 0.5 * lab.mass * velocity * velocity;
+          return {
+            period: 2 * Math.PI / omega,
+            frequency: omega / (2 * Math.PI),
+            position,
+            velocity,
+            acceleration,
+            kinetic,
+            potential,
+            total: 0.5 * lab.spring * lab.amplitude * lab.amplitude,
+            phase: omega * lab.time,
+            positionUnit: "m",
+            velocityUnit: "m/s",
+            accelerationUnit: "m/s²"
+          };
+        }
+
+        const period = pendulumPeriod(lab.length, lab.angle);
+        const motionState = integratePendulum(lab.time, lab.length, lab.angle, period);
+        const acceleration = -(gravity / lab.length) * Math.sin(motionState.angle);
+        const kinetic = 0.5 * lab.mass * lab.length * lab.length *
+          motionState.angularVelocity * motionState.angularVelocity;
+        const potential = lab.mass * gravity * lab.length * (1 - Math.cos(motionState.angle));
+        return {
+          period,
+          frequency: 1 / period,
+          position: motionState.angle,
+          velocity: motionState.angularVelocity,
+          acceleration,
+          kinetic,
+          potential,
+          total: kinetic + potential,
+          phase: 2 * Math.PI * lab.time / period,
+          positionUnit: "rad",
+          velocityUnit: "rad/s",
+          accelerationUnit: "rad/s²"
+        };
+      }
+
+      function setOutput(selector, value) {
+        $(selector).textContent = value;
+      }
+
+      function updateConditions() {
+        lab.mass = Number($("#mass-input").value);
+        lab.spring = Number($("#spring-input").value);
+        lab.amplitude = Number($("#amplitude-input").value);
+        lab.length = Number($("#length-input").value);
+        lab.angle = Number($("#angle-input").value);
+        setOutput("#mass-output", `${lab.mass.toFixed(2)} kg`);
+        setOutput("#spring-output", `${lab.spring.toFixed(0)} N/m`);
+        setOutput("#amplitude-output", `${lab.amplitude.toFixed(2)} m`);
+        setOutput("#length-output", `${lab.length.toFixed(2)} m`);
+        setOutput("#angle-output", `${lab.angle.toFixed(0)}°`);
+        $("#mass-label").textContent = lab.mode === "spring" ? "질량 m" : "진자 질량 m";
+        $("#mass-help").textContent = lab.mode === "spring"
+          ? "질량이 커지면 주기가 길어집니다."
+          : "질량은 바뀌어도 단진자의 주기는 같습니다.";
+        render();
+      }
+
+      function drawSpring(values) {
+        const centerY = 220 + values.position * 52;
+        const bottomY = centerY - 32;
+        const segments = 18;
+        let path = "M 320 48";
+        for (let i = 1; i <= segments; i++) {
+          const x = i === segments ? 320 : 320 + (i % 2 ? 17 : -17);
+          const y = 48 + (bottomY - 48) * i / segments;
+          path += ` L ${x.toFixed(1)} ${y.toFixed(1)}`;
+        }
+        motion.springCoil.setAttribute("d", path);
+        motion.springMass.setAttribute("y", (centerY - 32).toFixed(1));
+        motion.springMassLabel.setAttribute("y", (centerY + 7).toFixed(1));
+        motion.springPosition.setAttribute("y", (centerY + 58).toFixed(1));
+        motion.springPosition.textContent = `x = ${values.position.toFixed(2)} m`;
+      }
+
+      function drawPendulum(values) {
+        const angle = values.position;
+        const radius = 100 + (lab.length - 0.25) / 1.75 * 34;
+        const bobX = 320 + radius * Math.sin(angle);
+        const bobY = 54 + radius * Math.cos(angle);
+        const maxAngle = lab.angle * Math.PI / 180;
+        const arcStartX = 320 - radius * Math.sin(maxAngle);
+        const arcStartY = 54 + radius * Math.cos(maxAngle);
+        const arcEndX = 320 + radius * Math.sin(maxAngle);
+        const arcEndY = arcStartY;
+        motion.pendulumRod.setAttribute("x2", bobX.toFixed(1));
+        motion.pendulumRod.setAttribute("y2", bobY.toFixed(1));
+        motion.pendulumBob.setAttribute("cx", bobX.toFixed(1));
+        motion.pendulumBob.setAttribute("cy", bobY.toFixed(1));
+        motion.pendulumArc.setAttribute(
+          "d",
+          `M ${arcStartX.toFixed(1)} ${arcStartY.toFixed(1)} A ${radius} ${radius} 0 0 1 ${arcEndX.toFixed(1)} ${arcEndY.toFixed(1)}`
+        );
+        motion.pendulumAngle.textContent = `θ = ${(angle * 180 / Math.PI).toFixed(1)}°`;
+      }
+
+      function drawChart(values) {
+        const pointCount = 160;
+        const duration = values.period * 2;
+        const cacheKey = `${lab.mode}:${lab.length}:${lab.angle}`;
+        if (cacheKey !== chartCacheKey) {
+          const traces = [[], [], []];
+          for (let i = 0; i <= pointCount; i++) {
+            const progress = i / pointCount;
+            let signals;
+            if (lab.mode === "spring") {
+              const phase = 2 * Math.PI * progress * 2;
+              signals = [Math.cos(phase), -Math.sin(phase), -Math.cos(phase)];
+            } else {
+              const pendulum = integratePendulum(duration * progress, lab.length, lab.angle, values.period);
+              signals = [
+                pendulum.angle,
+                pendulum.angularVelocity,
+                -(gravity / lab.length) * Math.sin(pendulum.angle)
+              ];
+            }
+            signals.forEach((signal, index) => traces[index].push(signal));
+          }
+          chartCachePaths = traces.map((trace) => {
+            const scale = Math.max(...trace.map((value) => Math.abs(value)), 0.000001);
+            return trace.map((value, index) => {
+              const x = 56 + index / pointCount * 634;
+              const y = 123 - value / scale * 65;
+              return `${index === 0 ? "M" : "L"} ${x.toFixed(1)} ${y.toFixed(1)}`;
+            }).join(" ");
+          });
+          chartCacheKey = cacheKey;
+        }
+        motion.chartPosition.setAttribute("d", chartCachePaths[0]);
+        motion.chartVelocity.setAttribute("d", chartCachePaths[1]);
+        motion.chartAcceleration.setAttribute("d", chartCachePaths[2]);
+        const progress = (lab.time % duration) / duration;
+        const cursorX = 56 + progress * 634;
+        motion.chartCursor.setAttribute("x1", cursorX.toFixed(1));
+        motion.chartCursor.setAttribute("x2", cursorX.toFixed(1));
+        $("#chart-half-period").textContent = `T/2 · ${(values.period / 2).toFixed(2)} s`;
+        $("#chart-one-period").textContent = `T · ${values.period.toFixed(2)} s`;
+        $("#chart-two-period").textContent = `2T · ${(values.period * 2).toFixed(2)} s`;
+      }
+
+      function render() {
+        const values = sample();
+        const isSpring = lab.mode === "spring";
+        motion.springGroup.style.display = isSpring ? "" : "none";
+        motion.pendulumGroup.style.display = isSpring ? "none" : "";
+        $("#spring-controls").hidden = !isSpring;
+        $("#pendulum-controls").hidden = isSpring;
+
+        motion.period.textContent = `${values.period.toFixed(2)} s`;
+        motion.frequency.textContent = `${values.frequency.toFixed(2)} Hz`;
+        motion.position.textContent = `${values.position.toFixed(2)} ${values.positionUnit}`;
+        motion.velocity.textContent = `${values.velocity.toFixed(2)} ${values.velocityUnit}`;
+        motion.acceleration.textContent = `${values.acceleration.toFixed(2)} ${values.accelerationUnit}`;
+        $("#position-label").textContent = isSpring ? "변위 x" : "각변위 θ";
+        $("#velocity-label").textContent = isSpring ? "속도 v" : "각속도 ω";
+        $("#acceleration-label").textContent = isSpring ? "가속도 a" : "각가속도 α";
+        $("#elapsed-value").textContent = `${lab.time.toFixed(2)} s`;
+        setOutput("#kinetic-value", `${values.kinetic.toFixed(2)} J`);
+        setOutput("#potential-value", `${values.potential.toFixed(2)} J`);
+        const total = Math.max(values.total, 0.000001);
+        motion.kineticFill.style.width = `${Math.max(0, Math.min(100, values.kinetic / total * 100))}%`;
+        motion.potentialFill.style.width = `${Math.max(0, Math.min(100, values.potential / total * 100))}%`;
+        $("#energy-note").textContent = isSpring
+          ? `K + U = ${values.total.toFixed(2)} J · 역학적 에너지는 일정합니다.`
+          : `K + U = ${values.total.toFixed(2)} J · 진자 질량을 바꾸어도 주기는 같습니다.`;
+        motion.equation.textContent = isSpring
+          ? `ω = √(k/m) = ${Math.sqrt(lab.spring / lab.mass).toFixed(2)} rad/s　·　T = 2π√(m/k) = ${values.period.toFixed(2)} s`
+          : `T₀ = 2π√(L/g)　·　θ₀ 보정 포함 T ≈ ${values.period.toFixed(2)} s`;
+        $("#legend-position").textContent = isSpring ? "x 위치" : "θ 각변위";
+        $("#legend-velocity").textContent = isSpring ? "v 속도" : "ω 각속도";
+        $("#legend-acceleration").textContent = isSpring ? "a 가속도" : "α 각가속도";
+        $("#chart-description").textContent = isSpring
+          ? "두 주기 동안의 변위, 속도, 가속도의 위상 관계를 비교합니다."
+          : "단진자의 각변위, 각속도, 각가속도를 비교합니다.";
+        drawChart(values);
+        if (isSpring) drawSpring(values);
+        else drawPendulum(values);
+        $("#play-toggle").textContent = lab.playing ? "Ⅱ 일시정지" : "▶ 재생";
+        $("#play-toggle").setAttribute("aria-pressed", String(lab.playing));
+      }
+
+      function animationFrame(now) {
+        lab.frameId = 0;
+        if (!lab.playing) return;
+        lab.time = (now - lab.startedAt) / 1000;
+        render();
+        lab.frameId = requestAnimationFrame(animationFrame);
+      }
+
+      function changeMode(mode) {
+        lab.mode = mode;
+        lab.time = 0;
+        lab.playing = false;
+        if (lab.frameId) cancelAnimationFrame(lab.frameId);
+        lab.frameId = 0;
+        $("#activity-result").textContent = "예측을 고른 다음 확인을 눌러 보세요.";
+        $("#activity-result").removeAttribute("data-correct");
+        $("#activity-question").textContent = mode === "spring"
+          ? "질량을 2배로 하면 용수철의 주기는 어떻게 될까요?"
+          : "진자의 질량을 2배로 하면 주기가 어떻게 될까요?";
+        $("#activity-hint").textContent = mode === "spring"
+          ? "용수철 상수 k는 그대로 두고 생각해 보세요."
+          : "실의 길이와 초기 각도를 그대로 두고 생각해 보세요.";
+        lab.answer = null;
+        document.querySelectorAll("[data-answer]").forEach((button) => button.setAttribute("aria-pressed", "false"));
+        document.querySelectorAll("[data-mode]").forEach((button) => {
+          button.setAttribute("aria-pressed", String(button.dataset.mode === mode));
+        });
+        updateConditions();
+        $("#play-toggle").textContent = "▶ 재생";
+      }
+
+      document.querySelectorAll("[data-mode]").forEach((button) => {
+        button.addEventListener("click", () => changeMode(button.dataset.mode));
+      });
+
+      ["#mass-input", "#spring-input", "#amplitude-input", "#length-input", "#angle-input"].forEach((selector) => {
+        $(selector).addEventListener("input", updateConditions);
+      });
+
+      $("#play-toggle").addEventListener("click", () => {
+        if (lab.playing) {
+          lab.time = (performance.now() - lab.startedAt) / 1000;
+          lab.playing = false;
+          if (lab.frameId) cancelAnimationFrame(lab.frameId);
+          lab.frameId = 0;
+        } else {
+          lab.startedAt = performance.now() - lab.time * 1000;
+          lab.playing = true;
+          lab.frameId = requestAnimationFrame(animationFrame);
+        }
+        render();
+      });
+
+      $("#reset-motion").addEventListener("click", () => {
+        lab.time = 0;
+        lab.playing = false;
+        if (lab.frameId) cancelAnimationFrame(lab.frameId);
+        lab.frameId = 0;
+        render();
+      });
+
+      document.querySelectorAll("[data-answer]").forEach((button) => {
+        button.addEventListener("click", () => {
+          lab.answer = button.dataset.answer;
+          document.querySelectorAll("[data-answer]").forEach((choice) => {
+            choice.setAttribute("aria-pressed", String(choice === button));
+          });
+        });
+      });
+
+      $("#check-answer").addEventListener("click", () => {
+        const result = $("#activity-result");
+        if (!lab.answer) {
+          result.textContent = "먼저 하나를 골라 예측을 기록해 보세요.";
+          result.removeAttribute("data-correct");
+          return;
+        }
+        const correct = lab.mode === "spring" ? "longer" : "same";
+        const isCorrect = lab.answer === correct;
+        result.dataset.correct = String(isCorrect);
+        result.textContent = isCorrect
+          ? lab.mode === "spring"
+            ? "맞아요. T = 2π√(m/k)이므로 질량을 2배로 하면 주기는 √2배가 됩니다."
+            : "맞아요. 작은 각도에서 T = 2π√(L/g)이므로 질량은 주기에 들어가지 않습니다."
+          : lab.mode === "spring"
+            ? "아직 달라요. 질량이 식의 분자 쪽에 있을 때 주기가 어떻게 변하는지 살펴보세요."
+            : "아직 달라요. 단진자의 주기 식에 질량이 포함되는지 확인해 보세요.";
+      });
+
+      $("#compare-condition").addEventListener("click", () => {
+        const result = $("#activity-result");
+        if (lab.mode === "spring") {
+          const first = 2 * Math.PI * Math.sqrt(lab.mass / lab.spring);
+          const second = 2 * Math.PI * Math.sqrt((2 * lab.mass) / lab.spring);
+          result.textContent = `비교 결과: m = ${lab.mass.toFixed(2)} kg일 때 T = ${first.toFixed(2)} s, 2m일 때 T = ${second.toFixed(2)} s (약 √2배).`;
+        } else {
+          const period = pendulumPeriod(lab.length, lab.angle);
+          result.textContent = `비교 결과: ${lab.mass.toFixed(2)} kg과 ${(2 * lab.mass).toFixed(2)} kg에서 T ≈ ${period.toFixed(2)} s로 같습니다.`;
+        }
+        result.removeAttribute("data-correct");
+      });
+
+      $("#record-measurement").addEventListener("click", () => {
+        const values = sample();
+        const conditions = lab.mode === "spring"
+          ? `m=${lab.mass.toFixed(2)} kg, k=${lab.spring.toFixed(0)} N/m, A=${lab.amplitude.toFixed(2)} m`
+          : `m=${lab.mass.toFixed(2)} kg, L=${lab.length.toFixed(2)} m, θ₀=${lab.angle.toFixed(0)}°`;
+        const record = {
+          number: lab.records.length + 1,
+          mode: lab.mode === "spring" ? "용수철" : "단진자",
+          conditions,
+          period: `${values.period.toFixed(2)} s`,
+          energy: `${values.total.toFixed(2)} J`
+        };
+        lab.records.push(record);
+        $("#empty-record").hidden = true;
+        const row = document.createElement("tr");
+        [record.number, record.mode, record.conditions, record.period, record.energy].forEach((value) => {
+          const cell = document.createElement("td");
+          cell.textContent = value;
+          row.appendChild(cell);
+        });
+        $("#record-list").appendChild(row);
+      });
+
+      $("#export-records").addEventListener("click", () => {
+        if (!lab.records.length) {
+          $("#activity-result").textContent = "CSV를 만들려면 먼저 현재 값을 실험 기록에 추가해 보세요.";
+          return;
+        }
+        const rows = [
+          ["번호", "모형", "조건", "주기", "역학적 에너지"],
+          ...lab.records.map((record) => [record.number, record.mode, record.conditions, record.period, record.energy])
+        ];
+        const csv = `\uFEFF${rows.map((row) =>
+          row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(",")
+        ).join("\r\n")}`;
+        const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "진동-실험-기록.csv";
+        link.click();
+        URL.revokeObjectURL(url);
+      });
+
+      $("#font-smaller").addEventListener("click", () => {
+        fontSize.value = Math.max(fontSize.min, Math.round((fontSize.value - fontSize.step) * 10) / 10);
+        document.documentElement.style.setProperty("--font-scale", fontSize.value);
+      });
+      $("#font-larger").addEventListener("click", () => {
+        fontSize.value = Math.min(fontSize.max, Math.round((fontSize.value + fontSize.step) * 10) / 10);
+        document.documentElement.style.setProperty("--font-scale", fontSize.value);
+      });
+      $("#font-reset").addEventListener("click", () => {
+        fontSize.value = 1;
+        document.documentElement.style.setProperty("--font-scale", fontSize.value);
+      });
+
+      $("#showcase-toggle").addEventListener("click", (event) => {
+        const isShowcase = document.body.classList.toggle("showcase");
+        if (isShowcase) {
+          window.MotionLab.setTime(0);
+          event.currentTarget.textContent = "실험실로 돌아오기";
+        } else {
+          window.MotionLab.setTime(window.MotionLab.getState().cycleTime);
+          event.currentTarget.textContent = "모션 쇼케이스 보기";
+        }
+      });
+
+      updateConditions();
     })();
   </script>
 </body>
