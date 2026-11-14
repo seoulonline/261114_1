@@ -1,0 +1,1191 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f1efeb">
+  <title>진동의 순간 — Motion Lab</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: Geist, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+      background: #f1efeb;
+      color: #171719;
+    }
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+    }
+
+    body {
+      display: grid;
+      place-items: center;
+      background: #f1efeb;
+    }
+
+    canvas {
+      display: block;
+      width: min(100vmin, 100vw, 1440px);
+      height: min(100vmin, 100vw, 1440px);
+      touch-action: none;
+      cursor: none;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="stage" width="1440" height="1440" role="application" aria-label="용수철 진동과 단진자 운동을 조작하는 물리 시뮬레이션"></canvas>
+  <audio id="music" preload="none" loop src="https://assets.mixkit.co/music/130/130.mp3"></audio>
+  <input id="accessible-search" class="sr-only" type="text" aria-label="진동 개념 검색" autocomplete="off">
+  <p id="live-region" class="sr-only" aria-live="polite"></p>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const SIZE = 1440;
+      const BPM = 120;
+      const BEAT = 60 / BPM;
+      const BEATS = 28;
+      const LOOP = BEAT * BEATS;
+      const TRACK_BPM = 121.6;
+      const TRACK_DOWNBEAT = 0.005;
+      const TRACK_DURATION = 102.374;
+      const COLORS = {
+        ink: "#19191c",
+        muted: "#888680",
+        faint: "#d9d6d1",
+        paper: "#f1efeb",
+        white: "#fffefa",
+        purple: "#58207e",
+        purplePale: "#eee6f3",
+        teal: "#4daca3",
+        tealPale: "#e1f1ee",
+        black: "#151518"
+      };
+
+      const canvas = document.querySelector("#stage");
+      const ctx = canvas.getContext("2d", { alpha: false });
+      const audio = document.querySelector("#music");
+      audio.volume = 0.55;
+      audio.playbackRate = BPM / TRACK_BPM;
+      const searchInput = document.querySelector("#accessible-search");
+      const liveRegion = document.querySelector("#live-region");
+      const fontStack = 'Geist, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif';
+
+      const beats = [
+        { kind: "button", title: "실험 시작", action: "시작 버튼을 눌러 진동을 관찰해요" },
+        { kind: "loader", title: "초기화", action: "초기 조건을 불러와요" },
+        { kind: "check", title: "조건 확인", action: "주기 운동을 계산할 준비가 됐어요" },
+        { kind: "island", title: "분석 중", action: "초기 조건을 확인하고 있어요" },
+        { kind: "player", title: "재생", action: "시간에 따른 운동을 재생해요" },
+        { kind: "player", title: "일시정지", action: "재생 버튼으로 멈추고 다시 시작해요" },
+        { kind: "player", scrub: true, title: "진행 위치", action: "진행 막대를 드래그해 음악 위치를 바꿔요" },
+        { kind: "volume", title: "음량", action: "최대점을 지나 드래그해 슬라이더의 반응을 살펴봐요" },
+        { kind: "slider", param: "amplitude", title: "진폭", action: "드래그로 진폭 A를 바꿔요" },
+        { kind: "slider", param: "mass", title: "질량과 용수철 상수", action: "질량 m과 용수철 상수 k를 조절해요" },
+        { kind: "toggle", mode: "spring", title: "운동 모드", action: "용수철과 단진자를 비교해요" },
+        { kind: "tabs", tab: 0, title: "위치", action: "위치 x의 시간 변화를 선택해요" },
+        { kind: "tabs", tab: 2, title: "가속도", action: "가속도 a는 변위와 반대 방향이에요" },
+        { kind: "chart", chart: "motion", title: "위치 · 속도 · 가속도", action: "세 운동량을 같은 시간축에서 비교해요" },
+        { kind: "chart", chart: "energy", title: "에너지 전환", action: "운동 에너지와 위치 에너지의 합은 일정해요" },
+        { kind: "chart", chart: "tooltip", title: "순간 읽기", action: "그래프 위의 한 순간을 읽어봐요" },
+        { kind: "chart", chart: "period", title: "주기", action: "주기는 질량과 용수철 상수로 정해져요" },
+        { kind: "toggle", mode: "pendulum", title: "단진자", action: "작은 진폭의 진자 운동을 확인해요" },
+        { kind: "slider", param: "length", title: "실의 길이", action: "실이 길수록 주기가 길어져요" },
+        { kind: "chart", chart: "pendulum", title: "진자 주기 비교", action: "질량은 단진자의 주기를 바꾸지 않아요" },
+        { kind: "slider", param: "angle", title: "진폭과 등시성", action: "큰 진폭에서는 주기가 조금 늘어나요" },
+        { kind: "chart", chart: "large-angle", title: "작은 각도 근사", action: "sin θ ≈ θ 근사가 맞는 범위를 살펴봐요" },
+        { kind: "search", title: "개념 찾기", action: "검색창에 궁금한 개념을 입력해요" },
+        { kind: "search", query: "주기", title: "주기 검색", action: "‘주기’를 입력해 관련 개념을 찾아요" },
+        { kind: "search", query: "주기", title: "개념 선택", action: "Enter를 눌러 설명을 열어요" },
+        { kind: "toast", title: "실험 기록", action: "현재 설정을 실험 기록으로 저장해요" },
+        { kind: "toast", title: "처음으로", action: "무대가 시작 버튼으로 접혀요" },
+        { kind: "button", title: "실험 시작", action: "첫 프레임과 같은 위치로 돌아와요" }
+      ];
+
+      const shapeStyles = {
+        button: { w: 420, h: 138, r: 69, fill: COLORS.black, ink: COLORS.white },
+        loader: { w: 286, h: 286, r: 143, fill: COLORS.white, ink: COLORS.ink },
+        check: { w: 470, h: 246, r: 123, fill: COLORS.purplePale, ink: COLORS.ink },
+        island: { w: 350, h: 100, r: 50, fill: COLORS.black, ink: COLORS.white },
+        player: { w: 720, h: 236, r: 44, fill: COLORS.black, ink: COLORS.white },
+        volume: { w: 756, h: 228, r: 114, fill: COLORS.black, ink: COLORS.white },
+        slider: { w: 756, h: 288, r: 42, fill: COLORS.white, ink: COLORS.ink },
+        toggle: { w: 680, h: 244, r: 122, fill: COLORS.tealPale, ink: COLORS.ink },
+        tabs: { w: 830, h: 300, r: 44, fill: COLORS.white, ink: COLORS.ink },
+        chart: { w: 1080, h: 628, r: 42, fill: COLORS.white, ink: COLORS.ink },
+        search: { w: 790, h: 168, r: 84, fill: COLORS.black, ink: COLORS.white },
+        toast: { w: 650, h: 160, r: 48, fill: COLORS.tealPale, ink: COLORS.ink }
+      };
+
+      const controls = {
+        amplitude: 0.72,
+        mass: 1.0,
+        spring: 20,
+        length: 0.75,
+        angle: 18,
+        volume: 0.55,
+        mode: "spring",
+        selectedTab: 0,
+        search: "",
+        saved: false,
+        trackProgress: 0
+      };
+
+      let playing = false;
+      let rendering = false;
+      let startedAt = 0;
+      let cycleTime = 0;
+      let audioOffset = TRACK_DOWNBEAT;
+      let previousBeat = -1;
+      let currentPointer = { x: 720, y: 720, inside: false, down: false };
+      let dragging = null;
+      let dragVisual = 0;
+      let dragStretch = 0;
+      let dragReleaseAt = -10;
+      let hoveredChart = null;
+      let searchFocused = false;
+      let manualMode = null;
+      let manualTab = null;
+      let lastBounds = {};
+
+      const springStep = (p) => {
+        const x = Math.max(0, Math.min(1, p));
+        const zeta = 0.84;
+        const omega = 10.5;
+        const wd = omega * Math.sqrt(1 - zeta * zeta);
+        const raw = 1 - Math.exp(-zeta * omega * x) *
+          (Math.cos(wd * x) + (zeta * omega / wd) * Math.sin(wd * x));
+        const end = 1 - Math.exp(-zeta * omega) *
+          (Math.cos(wd) + (zeta * omega / wd) * Math.sin(wd));
+        return raw / end;
+      };
+
+      const mix = (a, b, t) => a + (b - a) * t;
+      const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
+
+      function springResponse(seconds) {
+        if (seconds <= 0) return 0;
+        const zeta = 0.84;
+        const omega = 18.5;
+        const wd = omega * Math.sqrt(1 - zeta * zeta);
+        return 1 - Math.exp(-zeta * omega * seconds) *
+          (Math.cos(wd * seconds) + (zeta * omega / wd) * Math.sin(wd * seconds));
+      }
+
+      function springTrack(t, property) {
+        const targets = beats.map((beat) => shapeStyles[beat.kind][property]);
+        let value = targets[0];
+        for (let cycle = -8; cycle <= 0; cycle++) {
+          for (let i = 0; i < BEATS; i++) {
+            const delta = targets[(i + 1) % BEATS] - targets[i];
+            if (delta === 0) continue;
+            const elapsed = t - (cycle * LOOP + i * BEAT);
+            value += delta * springResponse(elapsed);
+          }
+        }
+        return value;
+      }
+
+      function blendColor(first, second, progress) {
+        const a = first.match(/[a-f\d]{2}/gi).map((part) => parseInt(part, 16));
+        const b = second.match(/[a-f\d]{2}/gi).map((part) => parseInt(part, 16));
+        return `rgb(${a.map((value, i) => Math.round(mix(value, b[i], progress))).join(",")})`;
+      }
+
+      function resize() {
+        const cssSize = Math.min(window.innerWidth, window.innerHeight, SIZE);
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = Math.round(SIZE * dpr);
+        canvas.height = Math.round(SIZE * dpr);
+        canvas.style.width = `${cssSize}px`;
+        canvas.style.height = `${cssSize}px`;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.scale(1, 1);
+      }
+
+      function roundRect(x, y, w, h, r, fill, stroke, lineWidth = 1) {
+        const radius = Math.max(0, Math.min(r, w / 2, h / 2));
+        ctx.beginPath();
+        ctx.moveTo(x + radius, y);
+        ctx.arcTo(x + w, y, x + w, y + h, radius);
+        ctx.arcTo(x + w, y + h, x, y + h, radius);
+        ctx.arcTo(x, y + h, x, y, radius);
+        ctx.arcTo(x, y, x + w, y, radius);
+        ctx.closePath();
+        if (fill) {
+          ctx.fillStyle = fill;
+          ctx.fill();
+        }
+        if (stroke) {
+          ctx.strokeStyle = stroke;
+          ctx.lineWidth = lineWidth;
+          ctx.stroke();
+        }
+      }
+
+      function text(value, x, y, size, color, weight = 500, align = "left") {
+        ctx.font = `${weight} ${size}px ${fontStack}`;
+        ctx.fillStyle = color;
+        ctx.textAlign = align;
+        ctx.textBaseline = "alphabetic";
+        ctx.fillText(value, x, y);
+      }
+
+      function label(value, x, y, color = COLORS.muted, align = "left") {
+        ctx.font = `600 13px ${fontStack}`;
+        ctx.fillStyle = color;
+        ctx.textAlign = align;
+        ctx.textBaseline = "alphabetic";
+        ctx.fillText(value.toUpperCase(), x, y);
+      }
+
+      function line(x1, y1, x2, y2, color = COLORS.faint, width = 1) {
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.lineWidth = width;
+        ctx.strokeStyle = color;
+        ctx.stroke();
+      }
+
+      function circle(x, y, r, fill, stroke, width = 1) {
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        if (fill) {
+          ctx.fillStyle = fill;
+          ctx.fill();
+        }
+        if (stroke) {
+          ctx.lineWidth = width;
+          ctx.strokeStyle = stroke;
+          ctx.stroke();
+        }
+      }
+
+      function registerHit(name, x, y, w, h, data = {}) {
+        lastBounds[name] = { x, y, w, h, ...data };
+      }
+
+      function timeNow(now) {
+        if (playing) {
+          return ((now - startedAt) / 1000) % LOOP;
+        }
+        return cycleTime;
+      }
+
+      function seek(t) {
+        const local = ((t % LOOP) + LOOP) % LOOP;
+        const beatIndex = Math.floor(local / BEAT) % BEATS;
+        const progress = (local % BEAT) / BEAT;
+        const current = beats[beatIndex];
+        const next = beats[(beatIndex + 1) % BEATS];
+        const styleA = shapeStyles[current.kind];
+        const styleB = shapeStyles[next.kind];
+        const response = springStep(progress);
+        const currentMode = manualMode || current.mode || controls.mode;
+        const tab = manualTab === null ? (current.tab === undefined ? controls.selectedTab : current.tab) : manualTab;
+        return {
+          t: local,
+          beatIndex,
+          progress,
+          current,
+          next,
+          mode: currentMode,
+          tab,
+          style: {
+            w: springTrack(local, "w"),
+            h: springTrack(local, "h"),
+            r: springTrack(local, "r"),
+            fill: blendColor(styleA.fill, styleB.fill, response),
+            ink: blendColor(styleA.ink, styleB.ink, response)
+          }
+        };
+      }
+
+      function physics(t) {
+        const k = controls.spring;
+        const m = controls.mass;
+        const amplitude = controls.amplitude;
+        const omega = Math.sqrt(k / m);
+        const period = 2 * Math.PI / omega;
+        const phase = omega * t;
+        const x = amplitude * Math.cos(phase);
+        const v = -amplitude * omega * Math.sin(phase);
+        const a = -omega * omega * x;
+        const potential = 0.5 * k * x * x;
+        const kinetic = 0.5 * m * v * v;
+        const total = 0.5 * k * amplitude * amplitude;
+        const theta0 = controls.angle * Math.PI / 180;
+        const correction = 1 + theta0 * theta0 / 16 + 11 * Math.pow(theta0, 4) / 3072;
+        const smallPendulumT = 2 * Math.PI * Math.sqrt(controls.length / 9.81);
+        const pendulumT = smallPendulumT * correction;
+        const theta = theta0 * Math.cos((2 * Math.PI / pendulumT) * t);
+        return { omega, period, x, v, a, potential, kinetic, total, theta, smallPendulumT, pendulumT };
+      }
+
+      function drawBackground() {
+        ctx.fillStyle = COLORS.paper;
+        ctx.fillRect(0, 0, SIZE, SIZE);
+        ctx.strokeStyle = "rgba(25, 25, 28, .035)";
+        ctx.lineWidth = 1;
+        for (let x = 56; x <= SIZE; x += 48) {
+          line(x, 0, x, SIZE, "rgba(25, 25, 28, .025)", 1);
+        }
+      }
+
+      function drawHeader(frame) {
+        label("Motion lab  /  고급물리학", 112, 92, COLORS.ink);
+        label("Chapter 06   ·   Oscillation", 1328, 92, COLORS.muted, "right");
+        line(112, 112, 1328, 112, "#d8d5d0", 1);
+        text("흔들림을 읽다.", 720, 207, 58, COLORS.ink, 600, "center");
+        text("평형점에서 시작되는 운동, 에너지와 주기의 관계를 직접 탐색해 보세요.", 720, 249, 19, "#77746f", 400, "center");
+        circle(440, 297, 4, COLORS.purple);
+        text("용수철 단조화 운동", 452, 302, 14, COLORS.muted, 500);
+        circle(690, 297, 4, COLORS.teal);
+        text("단진자", 702, 302, 14, COLORS.muted, 500);
+        label(`${String(Math.floor(frame.beatIndex / 4) + 1).padStart(2, "0")} / 07 bars`, 1328, 302, COLORS.muted, "right");
+      }
+
+      function drawPlayIcon(x, y, playingNow, color) {
+        if (playingNow) {
+          roundRect(x - 9, y - 12, 6, 24, 2, color, null);
+          roundRect(x + 3, y - 12, 6, 24, 2, color, null);
+        } else {
+          ctx.beginPath();
+          ctx.moveTo(x - 7, y - 13);
+          ctx.lineTo(x + 14, y);
+          ctx.lineTo(x - 7, y + 13);
+          ctx.closePath();
+          ctx.fillStyle = color;
+          ctx.fill();
+        }
+      }
+
+      function drawButtonCard(x, y, w, h, type, frame) {
+        const centerX = x + w / 2;
+        const centerY = y + h / 2;
+        if (type === "button") {
+          text("실험 시작", centerX - 18, centerY + 9, 22, COLORS.white, 600, "center");
+          circle(centerX + 122, centerY, 21, "rgba(255,255,255,.16)");
+          text("↗", centerX + 122, centerY + 7, 19, COLORS.white, 500, "center");
+          registerHit("start", x, y, w, h);
+          return;
+        }
+        if (type === "loader") {
+          circle(centerX, centerY - 12, 41, null, "#e4e0db", 4);
+          ctx.beginPath();
+          ctx.arc(centerX, centerY - 12, 41, frame.t * Math.PI * 2, frame.t * Math.PI * 2 + Math.PI * 1.32);
+          ctx.lineWidth = 4;
+          ctx.lineCap = "round";
+          ctx.strokeStyle = COLORS.purple;
+          ctx.stroke();
+          text("초기 조건을 불러오는 중", centerX, centerY + 62, 16, COLORS.muted, 500, "center");
+          return;
+        }
+        if (type === "check") {
+          circle(centerX, centerY - 19, 34, COLORS.purple);
+          ctx.beginPath();
+          ctx.moveTo(centerX - 13, centerY - 18);
+          ctx.lineTo(centerX - 3, centerY - 8);
+          ctx.lineTo(centerX + 17, centerY - 31);
+          ctx.strokeStyle = COLORS.white;
+          ctx.lineWidth = 4;
+          ctx.lineCap = "round";
+          ctx.lineJoin = "round";
+          ctx.stroke();
+          text("초기 조건 확인", centerX, centerY + 49, 22, COLORS.ink, 600, "center");
+          text("단조화 운동을 시작할 수 있어요.", centerX, centerY + 77, 14, COLORS.muted, 400, "center");
+          return;
+        }
+        if (type === "island") {
+          circle(x + 54, centerY, 5, COLORS.teal);
+          label("MOTION LAB  ·  LIVE", x + 72, centerY - 5, "#aaa8aa");
+          text("진동을 분석하고 있어요", x + 72, centerY + 19, 15, COLORS.white, 500);
+          for (let i = 0; i < 7; i++) {
+            const amp = 4 + 8 * Math.abs(Math.sin(frame.t * 8 + i * 0.75));
+            roundRect(x + w - 76 + i * 7, centerY - amp / 2, 3, amp, 2, COLORS.teal, null);
+          }
+          return;
+        }
+        if (type === "player") {
+          label("MIXKIT  ·  ROYALTY-FREE", x + 42, y + 38, "#aaa8aa");
+          text("Tech House vibes", x + 42, y + 83, 24, COLORS.white, 600);
+          text("Alejandro Magaña  /  motion study", x + 42, y + 111, 14, "#aaa8aa", 400);
+          const playX = x + w - 76;
+          const playY = centerY;
+          circle(playX, playY, 31, COLORS.white);
+          drawPlayIcon(playX, playY, playing, COLORS.black);
+          registerHit("player", playX - 36, playY - 36, 72, 72);
+          for (let i = 0; i < 32; i++) {
+            const amp = 5 + 21 * Math.abs(Math.sin(i * 0.71) * Math.cos(i * 0.23));
+            const bx = x + 42 + i * 10;
+            const by = y + h - 32;
+            roundRect(bx, by - amp / 2, 3, amp, 2, i < 11 ? COLORS.teal : "#48474a", null);
+          }
+          const progressLeft = x + 42;
+          const progressRight = x + w - 250;
+          const progressY = y + h - 59;
+          const progressX = mix(progressLeft, progressRight, controls.trackProgress);
+          line(progressLeft, progressY, progressRight, progressY, "#48474a", 3);
+          line(progressLeft, progressY, progressX, progressY, COLORS.teal, 3);
+          circle(progressX, progressY, frame.current.scrub ? 7 : 5, COLORS.white);
+          const trackDuration = Number.isFinite(audio.duration) ? audio.duration : TRACK_DURATION;
+          const elapsed = Math.floor(controls.trackProgress * trackDuration);
+          text(`${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, "0")}`,
+            progressLeft, progressY - 8, 10, "#aaa8aa", 500);
+          registerHit("slider-track", progressLeft - 8, progressY - 14,
+            progressRight - progressLeft + 16, 28,
+            { param: "track", left: progressLeft, right: progressRight, trackY: progressY });
+          const volumeLeft = dragging && dragging.param === "volume" ? dragging.left : x + w - 204;
+          const volumeRight = dragging && dragging.param === "volume" ? dragging.right : x + w - 70;
+          const volumeY = y + h - 32;
+          const volumeX = volumeLeft + clamp(controls.volume / 1.2, 0, 1) * (volumeRight - volumeLeft);
+          label("VOL", volumeLeft, volumeY - 15, "#8d8a8b");
+          text(`${Math.round(controls.volume * 100)}%`, volumeRight, volumeY - 15, 10, "#aaa8aa", 500, "right");
+          line(volumeLeft, volumeY, volumeRight, volumeY, "#48474a", 4);
+          line(volumeLeft, volumeY, volumeX, volumeY, COLORS.teal, 4);
+          circle(volumeX, volumeY, 8 + dragStretch / 18, COLORS.white);
+          registerHit("slider-volume", volumeLeft - 10, volumeY - 20, volumeRight - volumeLeft + 20, 40,
+            { param: "volume", left: volumeLeft, right: volumeRight, trackY: volumeY });
+          text("무료 음원 · Mixkit", x + 42, y + h - 8, 11, "#8d8a8b", 400);
+          return;
+        }
+        if (type === "volume") {
+          label("DRAG PAST THE END", x + 58, y + 55, "#aaa8aa");
+          text("음량", x + 58, y + 99, 22, COLORS.white, 600);
+          text(`${Math.round(controls.volume * 100)}%`, x + w - 58, y + 99, 18, COLORS.teal, 600, "right");
+          const left = dragging && dragging.param === "volume" ? dragging.left : x + 58;
+          const right = dragging && dragging.param === "volume" ? dragging.right : x + w - 58;
+          const trackY = y + 154;
+          const ratio = clamp(controls.volume / 1.2, 0, 1);
+          const knobX = mix(left, right, ratio);
+          line(left, trackY, right, trackY, "#48474a", 8);
+          line(left, trackY, knobX, trackY, COLORS.teal, 8);
+          circle(knobX, trackY, 12 + dragStretch / 18, COLORS.white);
+          text("0", left, trackY + 35, 12, "#aaa8aa", 400);
+          text("100%", right, trackY + 35, 12, "#aaa8aa", 400, "right");
+          registerHit("slider-volume", left - 12, trackY - 30, right - left + 24, 60,
+            { param: "volume", left, right, trackY });
+          return;
+        }
+        if (type === "toast") {
+          circle(x + 60, centerY, 25, COLORS.teal);
+          ctx.beginPath();
+          ctx.moveTo(x + 49, centerY);
+          ctx.lineTo(x + 57, centerY + 8);
+          ctx.lineTo(x + 72, centerY - 10);
+          ctx.strokeStyle = COLORS.white;
+          ctx.lineWidth = 3;
+          ctx.lineCap = "round";
+          ctx.lineJoin = "round";
+          ctx.stroke();
+          text(controls.saved ? "실험 기록 저장 완료" : "실험 조건을 기록했어요", x + 106, centerY + 6, 19, COLORS.ink, 600);
+          text(`${controls.mass.toFixed(1)} kg  ·  ${controls.spring.toFixed(0)} N/m  ·  A ${controls.amplitude.toFixed(2)} m`, x + 106, centerY + 32, 13, COLORS.muted, 400);
+          registerHit("toast", x, y, w, h);
+        }
+      }
+
+      function drawSliderCard(x, y, w, h, param) {
+        const left = x + 76;
+        const right = x + w - 76;
+        if (param === "mass") {
+          const massTrackY = y + 145;
+          const springTrackY = y + 229;
+          const massRatio = (controls.mass - 0.25) / 2.75;
+          const springRatio = (controls.spring - 8) / 40;
+          label("TUNE THE OSCILLATOR", x + 76, y + 48);
+          text("질량 m", x + 76, y + 88, 18, COLORS.ink, 600);
+          text(`${controls.mass.toFixed(2)} kg`, x + w - 76, y + 88, 16, COLORS.purple, 600, "right");
+          text("용수철 상수 k", x + 76, y + 174, 18, COLORS.ink, 600);
+          text(`${controls.spring.toFixed(0)} N/m`, x + w - 76, y + 174, 16, COLORS.teal, 600, "right");
+          [
+            [massTrackY, massRatio, COLORS.purple],
+            [springTrackY, springRatio, COLORS.teal]
+          ].forEach(([trackY, ratio, color]) => {
+            const knobX = left + clamp(ratio, 0, 1) * (right - left);
+            line(left, trackY, right, trackY, "#e4e1dc", 7);
+            line(left, trackY, knobX, trackY, color, 7);
+            circle(knobX, trackY, 14, COLORS.white, color, 3);
+          });
+          text("0.25 kg", left, massTrackY + 25, 11, COLORS.muted, 400);
+          text("3.0 kg", right, massTrackY + 25, 11, COLORS.muted, 400, "right");
+          text("8 N/m", left, springTrackY + 25, 11, COLORS.muted, 400);
+          text("48 N/m", right, springTrackY + 25, 11, COLORS.muted, 400, "right");
+          registerHit("slider-mass", left - 12, massTrackY - 30, right - left + 24, 60,
+            { param: "mass", left, right, trackY: massTrackY });
+          registerHit("slider-spring", left - 12, springTrackY - 30, right - left + 24, 60,
+            { param: "spring", left, right, trackY: springTrackY });
+          return;
+        }
+        const title = param === "amplitude" ? "진폭 A" : param === "length" ? "실의 길이 L" : "초기 진폭 θ₀";
+        let value;
+        let currentValue;
+        if (param === "amplitude") {
+          value = controls.amplitude;
+          currentValue = `${value.toFixed(2)} m`;
+        } else if (param === "length") {
+          value = (controls.length - 0.25) / 1.75;
+          currentValue = `${controls.length.toFixed(2)} m`;
+        } else {
+          value = (controls.angle - 5) / 65;
+          currentValue = `${controls.angle.toFixed(0)}°`;
+        }
+        const trackY = y + h * 0.63;
+        const knobX = left + clamp(value, 0, 1) * (right - left);
+        label("DRAG TO EXPLORE", x + 76, y + 56);
+        text(title, x + 76, y + 105, 23, COLORS.ink, 600);
+        text(currentValue, x + w - 76, y + 106, 19, COLORS.purple, 600, "right");
+        line(left, trackY, right, trackY, "#e4e1dc", 8);
+        line(left, trackY, knobX, trackY, COLORS.purple, 8);
+        circle(knobX, trackY, 17, COLORS.white, COLORS.purple, 4);
+        const labels = param === "amplitude" ? ["0.2 m", "1.4 m"] :
+          param === "mass" ? ["0.25 kg", "3.0 kg"] :
+          param === "length" ? ["0.25 m", "2.0 m"] : ["5°", "70°"];
+        text(labels[0], left, trackY + 42, 13, COLORS.muted, 400);
+        text(labels[1], right, trackY + 42, 13, COLORS.muted, 400, "right");
+        registerHit("slider-main", left - 12, trackY - 35, right - left + 24, 70, { param, left, right, trackY });
+      }
+
+      function drawToggleCard(x, y, w, h, mode, frame) {
+        const fromMode = manualMode || frame.current.mode || controls.mode;
+        const toMode = manualMode || frame.next.mode || fromMode;
+        const active = manualMode || mode || controls.mode;
+        label("CHOOSE A SYSTEM", x + 58, y + 54);
+        text("무엇이 흔들리고 있나요?", x + 58, y + 96, 22, COLORS.ink, 600);
+        const switchX = x + w - 142;
+        const switchY = y + h / 2 + 5;
+        const fromX = switchX + (fromMode === "pendulum" ? 18 : -18);
+        const toX = switchX + (toMode === "pendulum" ? 18 : -18);
+        const progress = clamp((frame.progress - 0.38) / 0.62, 0, 1);
+        const toRight = toX > fromX;
+        const leftProgress = springStep(progress * (toRight ? 0.82 : 1.16));
+        const rightProgress = springStep(progress * (toRight ? 1.16 : 0.82));
+        const left = mix(fromX - 19, toX - 19, leftProgress);
+        const right = mix(fromX + 19, toX + 19, rightProgress);
+        roundRect(switchX - 46, switchY - 28, 92, 56, 28,
+          blendColor("#d9d6d1", COLORS.teal, springStep(progress)), null);
+        roundRect(left, switchY - 20, Math.max(38, right - left), 40, 20, COLORS.white, null);
+        text("용수철", x + 58, y + h - 45, 16, active === "spring" ? COLORS.purple : COLORS.muted, 600);
+        text("단진자", x + 164, y + h - 45, 16, active === "pendulum" ? COLORS.teal : COLORS.muted, 600);
+        registerHit("toggle", switchX - 56, switchY - 38, 112, 76);
+      }
+
+      function drawTabsCard(x, y, w, h, tab, t, frame) {
+        const tabs = ["위치  x", "속도  v", "가속도  a"];
+        const left = x + 48;
+        const top = y + 50;
+        const tabW = 170;
+        const gap = 8;
+        const index = clamp(tab, 0, 2);
+        roundRect(left, top, tabW * 3 + gap * 2, 60, 30, "#f1efeb", null);
+        const fromIndex = manualTab === null ? (frame.current.tab === undefined ? index : frame.current.tab) : index;
+        const toIndex = manualTab === null ? (frame.next.tab === undefined ? fromIndex : frame.next.tab) : index;
+        const direction = Math.sign(toIndex - fromIndex);
+        const leftProgress = springStep(frame.progress * (direction < 0 ? 1.16 : 0.82));
+        const rightProgress = springStep(frame.progress * (direction > 0 ? 1.16 : 0.82));
+        const indicatorLeft = mix(left + fromIndex * (tabW + gap), left + toIndex * (tabW + gap), leftProgress);
+        const indicatorRight = mix(left + fromIndex * (tabW + gap) + tabW,
+          left + toIndex * (tabW + gap) + tabW, rightProgress);
+        roundRect(indicatorLeft, top, Math.max(tabW, indicatorRight - indicatorLeft), 60, 30, COLORS.black, null);
+        tabs.forEach((value, i) => text(value, left + i * (tabW + gap) + tabW / 2, top + 37, 16,
+          i === index ? COLORS.white : COLORS.muted, 600, "center"));
+        text(index === 0 ? "변위는 평형점을 중심으로 왕복해요." :
+          index === 1 ? "속도는 변위보다 ¼주기 앞서요." : "가속도는 변위와 180° 위상차예요.",
+          x + 48, y + 171, 20, COLORS.ink, 500);
+        const p = physics(t);
+        const values = [p.x, p.v / p.omega, p.a / (p.omega * p.omega)];
+        const value = values[index];
+        const xx = x + 76 + (value / controls.amplitude + 1) * (w - 152) / 2;
+        line(x + 76, y + 230, x + w - 76, y + 230, "#ddd9d4", 2);
+        line(x + w / 2, y + 218, x + w / 2, y + 242, "#aaa7a1", 1);
+        circle(clamp(xx, x + 76, x + w - 76), y + 230, 11, index === 1 ? COLORS.teal : COLORS.purple);
+        ["tabs-x", "tabs-v", "tabs-a"].forEach((name, i) => {
+          registerHit(name, left + i * (tabW + gap), top, tabW, 60, { tab: i });
+        });
+      }
+
+      function drawChart(x, y, w, h, chartType, frame, p) {
+        const isPendulum = chartType === "pendulum" || chartType === "large-angle" ||
+          (frame.mode === "pendulum" && chartType !== "energy");
+        const reveal = chartType === "motion" || chartType === "energy" || chartType === "tooltip"
+          ? clamp((frame.beatIndex - 13 + frame.progress) / 3, 0, 1)
+          : 1;
+        const pointsToDraw = Math.round(reveal * 180);
+        const marginX = 64;
+        const graphX = x + marginX;
+        const graphY = y + 192;
+        const graphW = w - marginX * 2;
+        const graphH = 190;
+        const baseY = graphY + graphH / 2;
+        const graphPeriod = isPendulum ? p.pendulumT : p.period;
+        label(isPendulum ? "PENDULUM · θ(t)" : "SPRING · x(t), v(t), a(t)", x + 58, y + 48, COLORS.muted);
+        text(chartType === "energy" ? "에너지의 합은 일정해요" :
+          chartType === "period" ? "주기를 결정하는 요인" :
+          chartType === "pendulum" ? "실의 길이와 질량" :
+          chartType === "large-angle" ? "진폭이 커지면 주기도 늘어날까요?" : "시간에 따라 달라지는 운동",
+          x + 58, y + 91, 24, COLORS.ink, 600);
+        text(isPendulum ? `T ≈ ${p.pendulumT.toFixed(2)} s` : `T = 2π√(m/k)  ·  ${p.period.toFixed(2)} s`,
+          x + w - 58, y + 57, 14, isPendulum ? COLORS.teal : COLORS.purple, 600, "right");
+        line(graphX, graphY, graphX + graphW, graphY, "#eeece8", 1);
+        line(graphX, baseY, graphX + graphW, baseY, "#c8c4be", 1);
+        line(graphX, graphY + graphH, graphX + graphW, graphY + graphH, "#eeece8", 1);
+        for (let i = 0; i <= 8; i++) {
+          const xx = graphX + graphW * i / 8;
+          line(xx, graphY - 8, xx, graphY + graphH + 10, "#eae7e2", 1);
+          text(`${(i * graphPeriod / 4).toFixed(1)}`, xx, graphY + graphH + 31, 11, COLORS.muted, 400, "center");
+        }
+        label("t (s)", graphX + graphW, graphY + graphH + 52, COLORS.muted, "right");
+
+        const plotCurve = (kind, color, amplitudeScale, dash = [], curvePeriod = graphPeriod) => {
+          if (pointsToDraw < 1) return;
+          ctx.beginPath();
+          for (let i = 0; i <= pointsToDraw; i++) {
+            const u = i / 180;
+            const phase = 2 * Math.PI * (u * graphPeriod * 2 / curvePeriod);
+            let value;
+            if (isPendulum) {
+              value = Math.cos(phase);
+            } else if (kind === "x") {
+              value = Math.cos(phase);
+            } else if (kind === "v") {
+              value = -Math.sin(phase);
+            } else {
+              value = -Math.cos(phase);
+            }
+            const px = graphX + u * graphW;
+            const py = baseY - value * amplitudeScale * graphH * 0.39;
+            if (i === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+          }
+          ctx.setLineDash(dash);
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 3;
+          ctx.lineCap = "round";
+          ctx.stroke();
+          ctx.setLineDash([]);
+        };
+
+        if (chartType === "energy") {
+          const yTop = graphY + 8;
+          const energyH = graphH - 16;
+          const yBase = yTop + energyH;
+          ctx.beginPath();
+          for (let i = 0; i <= pointsToDraw; i++) {
+            const u = i / 180;
+            const value = Math.pow(Math.cos(u * Math.PI * 4), 2);
+            const px = graphX + u * graphW;
+            const py = yBase - value * energyH * 0.82;
+            if (!i) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+          }
+          ctx.strokeStyle = COLORS.purple;
+          ctx.lineWidth = 3;
+          ctx.stroke();
+          ctx.beginPath();
+          for (let i = 0; i <= pointsToDraw; i++) {
+            const u = i / 180;
+            const value = Math.pow(Math.sin(u * Math.PI * 4), 2);
+            const px = graphX + u * graphW;
+            const py = yBase - value * energyH * 0.82;
+            if (!i) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+          }
+          ctx.strokeStyle = COLORS.teal;
+          ctx.lineWidth = 3;
+          ctx.stroke();
+          line(graphX, yTop + energyH * 0.18, graphX + graphW, yTop + energyH * 0.18, COLORS.ink, 1.5);
+        } else if (isPendulum) {
+          plotCurve("x", COLORS.teal, 1, [], p.smallPendulumT);
+          if (chartType === "large-angle") {
+            plotCurve("x", COLORS.purple, 1, [8, 8], p.pendulumT);
+          }
+        } else {
+          plotCurve("x", COLORS.purple, 1);
+          if (chartType === "motion" || chartType === "tooltip") {
+            plotCurve("v", COLORS.teal, 0.82);
+            plotCurve("a", COLORS.ink, 0.58);
+          }
+        }
+
+        const currentPointX = graphX + (((frame.t / graphPeriod) % 2) / 2) * graphW;
+        const pointPhase = ((frame.t / graphPeriod) % 1) * Math.PI * 2;
+        const pointValue = chartType === "energy" ? Math.cos(pointPhase) : Math.cos(pointPhase);
+        const pointY = baseY - pointValue * graphH * 0.39;
+        circle(currentPointX, pointY, 7, COLORS.white, isPendulum ? COLORS.teal : COLORS.purple, 3);
+
+        const infoY = y + h - 94;
+        const currentX = isPendulum ? p.theta : p.x;
+        const pendulumOmega = 2 * Math.PI / p.pendulumT;
+        const currentV = isPendulum ? -controls.angle * Math.PI / 180 * pendulumOmega * Math.sin(pendulumOmega * frame.t) : p.v;
+        const currentA = isPendulum ? -(pendulumOmega ** 2) * currentX : p.a;
+        const stats = chartType === "energy" ? [
+          ["K", `${p.kinetic.toFixed(2)} J`, COLORS.teal],
+          ["U", `${p.potential.toFixed(2)} J`, COLORS.purple],
+          ["E", `${p.total.toFixed(2)} J`, COLORS.ink]
+        ] : [
+          [isPendulum ? "θ" : "x", `${currentX.toFixed(2)} ${isPendulum ? "rad" : "m"}`, COLORS.purple],
+          ["v", `${currentV.toFixed(2)} ${isPendulum ? "rad/s" : "m/s"}`, COLORS.teal],
+          ["a", `${currentA.toFixed(2)} ${isPendulum ? "rad/s²" : "m/s²"}`, COLORS.ink]
+        ];
+        stats.forEach((item, i) => {
+          const sx = x + 62 + i * 230;
+          label(item[0], sx, infoY, item[2]);
+          text(item[1], sx, infoY + 29, 19, COLORS.ink, 600);
+        });
+        if (chartType === "pendulum") {
+          text("질량은 단진자의 주기를 바꾸지 않아요.", x + w - 60, infoY + 29, 14, COLORS.muted, 500, "right");
+        } else if (chartType === "period") {
+          text(isPendulum ? "질량은 주기에 영향을 주지 않아요." : "m이 커지면 T가 길고, k가 커지면 T가 짧아요.",
+            x + w - 60, infoY + 29, 14, COLORS.muted, 500, "right");
+        } else if (chartType === "large-angle") {
+          circle(x + w - 313, y + 132, 4, COLORS.teal);
+          text("작은 각도 근사", x + w - 299, y + 137, 13, COLORS.muted, 400);
+          circle(x + w - 178, y + 132, 4, COLORS.purple);
+          text("큰 진폭 보정", x + w - 164, y + 137, 13, COLORS.muted, 400);
+        } else if (chartType === "energy") {
+          text("보라: 위치 에너지   청록: 운동 에너지   검정: 역학적 에너지", x + w - 60, infoY + 29, 12, COLORS.muted, 400, "right");
+        } else if (isPendulum) {
+          circle(x + w - 148, y + 132, 4, COLORS.teal);
+          text("θ", x + w - 134, y + 137, 13, COLORS.teal, 600);
+        } else if (chartType === "motion" || chartType === "tooltip") {
+          text("x", x + w - 248, y + 137, 13, COLORS.purple, 600);
+          text("v", x + w - 184, y + 137, 13, COLORS.teal, 600);
+          text("a", x + w - 120, y + 137, 13, COLORS.ink, 600);
+          circle(x + w - 268, y + 132, 4, COLORS.purple);
+          circle(x + w - 204, y + 132, 4, COLORS.teal);
+          circle(x + w - 140, y + 132, 4, COLORS.ink);
+        } else {
+          circle(x + w - 148, y + 132, 4, COLORS.purple);
+          text("x", x + w - 134, y + 137, 13, COLORS.purple, 600);
+        }
+
+        registerHit("chart-plot", graphX, graphY - 12, graphW, graphH + 22);
+        if (hoveredChart && hoveredChart.x >= graphX && hoveredChart.x <= graphX + graphW &&
+            hoveredChart.y >= graphY && hoveredChart.y <= graphY + graphH) {
+          const u = (hoveredChart.x - graphX) / graphW;
+          const seconds = u * graphPeriod * 2;
+          const phase = 2 * Math.PI * seconds / graphPeriod;
+          const value = isPendulum
+            ? controls.angle * Math.PI / 180 * Math.cos(phase)
+            : controls.amplitude * Math.cos(phase);
+          const symbol = isPendulum ? "θ" : "x";
+          const unit = isPendulum ? "rad" : "m";
+          line(hoveredChart.x, graphY, hoveredChart.x, graphY + graphH, "#aaa7a1", 1);
+          circle(hoveredChart.x, baseY - Math.cos(phase) * graphH * 0.39, 6,
+            isPendulum ? COLORS.teal : COLORS.purple);
+          roundRect(clamp(hoveredChart.x - 65, graphX, graphX + graphW - 130), graphY - 48, 130, 36, 12, COLORS.black, null);
+          text(`t ${seconds.toFixed(2)} s  ·  ${symbol} ${value.toFixed(2)} ${unit}`,
+            clamp(hoveredChart.x, graphX + 65, graphX + graphW - 65), graphY - 25, 11, COLORS.white, 500, "center");
+        }
+      }
+
+      function drawSearchCard(x, y, w, h, query) {
+        label("⌘K   SEARCH THE MOTION", x + 42, y + 47, "#aaa8aa");
+        const searchText = query || "";
+        text(searchText || "개념이나 식 검색하기…", x + 42, y + 92, 19, searchText ? COLORS.white : "#77757a", 500);
+        line(x + 40, y + 110, x + w - 40, y + 110, "#454449", 1);
+        if (searchText) {
+          const library = [
+            { name: "용수철의 주기", formula: "T = 2π√(m/k)", tags: "주기 진동 용수철 단조화" },
+            { name: "단진자의 주기", formula: "T = 2π√(L/g)", tags: "주기 진자 길이 등시성" },
+            { name: "에너지 보존", formula: "E = K + U = ½kA²", tags: "에너지 운동 위치 보존" },
+            { name: "위상 관계", formula: "v는 x보다 ¼주기 앞섬", tags: "위상 속도 가속도 위치" }
+          ];
+          const results = library.filter((item) => `${item.name} ${item.formula} ${item.tags}`.toLowerCase().includes(searchText.toLowerCase()));
+          if (results.length) {
+            text(results[0].name, x + 42, y + 137, 14, COLORS.white, 500);
+            text(results[0].formula, x + 42, y + 153, 12, "#aaa8aa", 400);
+          } else {
+            text("검색 결과가 없습니다.", x + 42, y + 137, 13, "#aaa8aa", 400);
+          }
+          roundRect(x + w - 83, y + h / 2 - 18, 43, 33, 10, "#39383d", null);
+          text("↵", x + w - 61, y + h / 2 + 4, 16, COLORS.white, 500, "center");
+        }
+        registerHit("search", x + 24, y + 20, w - 48, h - 40);
+      }
+
+      function drawCard(frame, now) {
+        const style = frame.style;
+        const releaseProgress = clamp((now - dragReleaseAt) / 0.36, 0, 1);
+        const settle = 1 - springStep(releaseProgress);
+        const offsetX = dragging ? dragVisual * 0.08 : dragVisual * 0.08 * settle;
+        const stretched = dragging && dragging.param === "volume" ? dragStretch : dragStretch * settle;
+        const width = style.w + stretched;
+        const x = (SIZE - width) / 2 + offsetX;
+        const y = 694 - style.h / 2;
+        ctx.save();
+        ctx.shadowColor = "rgba(24, 22, 21, .08)";
+        ctx.shadowBlur = 30;
+        ctx.shadowOffsetY = 16;
+        roundRect(x, y, width, style.h, style.r, style.fill, "rgba(30, 28, 26, .07)", 1);
+        ctx.restore();
+
+        const contentFade = frame.progress > 0.38 && frame.progress < 0.66
+          ? Math.abs(frame.progress - 0.52) / 0.14
+          : 1;
+        const contentType = frame.progress < 0.52 ? frame.current.kind : frame.next.kind;
+        const config = frame.progress < 0.52 ? frame.current : frame.next;
+        ctx.save();
+        ctx.globalAlpha = clamp(contentFade, 0, 1);
+        if (contentFade < 0.99) ctx.filter = `blur(${(1 - contentFade) * 5}px)`;
+        if (contentType === "button" || contentType === "loader" || contentType === "check" ||
+            contentType === "island" || contentType === "player" || contentType === "toast") {
+          drawButtonCard(x, y, width, style.h, contentType, frame);
+        } else if (contentType === "volume") {
+          drawButtonCard(x, y, width, style.h, contentType, frame);
+        } else if (contentType === "slider") {
+          drawSliderCard(x, y, width, style.h, config.param || "amplitude");
+        } else if (contentType === "toggle") {
+          drawToggleCard(x, y, width, style.h, config.mode, frame);
+        } else if (contentType === "tabs") {
+          drawTabsCard(x, y, width, style.h, frame.tab, frame.t, frame);
+        } else if (contentType === "chart") {
+          drawChart(x, y, width, style.h, config.chart || "motion", frame, physics(frame.t));
+        } else if (contentType === "search") {
+          const query = config.query || controls.search;
+          drawSearchCard(x, y, width, style.h, query);
+        }
+        ctx.restore();
+        return { x, y, w: width, h: style.h };
+      }
+
+      function drawPointer(t) {
+        const points = [
+          [720, 694], [720, 690], [720, 688], [720, 694], [1004, 694], [1004, 694],
+          [620, 753], [1100, 734], [1022, 731], [1022, 695], [918, 699], [438, 624],
+          [794, 624], [900, 650], [1000, 650], [900, 650], [780, 732], [918, 699],
+          [1022, 731], [1090, 732], [1022, 731], [900, 650], [720, 694], [760, 694],
+          [1053, 694], [850, 692], [720, 710], [720, 694]
+        ];
+        const f = (t / LOOP) * points.length;
+        const i = Math.floor(f);
+        const u = f - i;
+        const p0 = points[(i - 1 + points.length) % points.length];
+        const p1 = points[i % points.length];
+        const p2 = points[(i + 1) % points.length];
+        const p3 = points[(i + 2) % points.length];
+        const catmull = (a, b, c, d, q) => 0.5 * ((2 * b) + (-a + c) * q +
+          (2 * a - 5 * b + 4 * c - d) * q * q + (-a + 3 * b - 3 * c + d) * q * q * q);
+        const px = catmull(p0[0], p1[0], p2[0], p3[0], u);
+        const py = catmull(p0[1], p1[1], p2[1], p3[1], u);
+        return { x: px, y: py };
+      }
+
+      function drawCursorAt(point, t) {
+        const px = point.x;
+        const py = point.y;
+        const beatProgress = (t % BEAT) / BEAT;
+        const pulse = Math.max(0, 1 - beatProgress * 3.2);
+        circle(px, py, 8 + pulse * 10, null, "rgba(88, 32, 126, .28)", 1.5);
+        ctx.save();
+        ctx.translate(px, py);
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(0, 24);
+        ctx.lineTo(6, 17);
+        ctx.lineTo(12, 27);
+        ctx.lineTo(17, 24);
+        ctx.lineTo(11, 14);
+        ctx.lineTo(21, 14);
+        ctx.closePath();
+        ctx.fillStyle = COLORS.black;
+        ctx.strokeStyle = COLORS.white;
+        ctx.lineWidth = 2;
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function drawTimeline(frame) {
+        const left = 112;
+        const right = 1328;
+        const y = 1288;
+        label("BEAT GRID", left, 1207, COLORS.muted);
+        text(`${String(frame.beatIndex + 1).padStart(2, "0")} / 28`, right, 1207, 14, COLORS.ink, 600, "right");
+        line(left, 1225, right, 1225, "#d6d2cc", 1);
+        const gap = 8;
+        const beatW = (right - left - gap * 27) / 28;
+        beats.forEach((_, i) => {
+          const bx = left + i * (beatW + gap);
+          const active = i === frame.beatIndex;
+          const fill = i < frame.beatIndex ? "#c8c4be" : "#dfdcd7";
+          roundRect(bx, y, beatW, active ? 12 : 8, 4, active ? COLORS.purple : fill, null);
+          registerHit(`beat-${i}`, bx - 4, y - 12, beatW + gap, 34, { beat: i });
+        });
+        for (let bar = 0; bar < 7; bar++) {
+          text(String(bar + 1).padStart(2, "0"), left + (right - left) * ((bar * 4 + 2) / 28), 1328, 10, COLORS.muted, 500, "center");
+        }
+        text("⏵", left, 1376, 16, COLORS.ink, 500);
+        text("SPACE  재생/정지     ·     클릭 또는 드래그로 박자 이동", left + 25, 1375, 12, COLORS.muted, 400);
+        text("120 BPM  ·  7 BARS  ·  14 SEC", right, 1375, 12, COLORS.muted, 500, "right");
+      }
+
+      function draw(t, now) {
+        const frame = seek(t);
+        lastBounds = {};
+        drawBackground();
+        drawHeader(frame);
+        if ((playing || rendering) && frame.current.kind === "chart" && frame.current.chart === "tooltip") {
+          hoveredChart = drawPointer(frame.t);
+        }
+        const card = drawCard(frame, now);
+        text(frame.current.action, 720, 1093, 15, COLORS.muted, 500, "center");
+        drawTimeline(frame);
+        if ((playing || rendering) && !dragging) {
+          drawCursorAt(drawPointer(t), t);
+        } else if (currentPointer.inside && !dragging) {
+          drawCursorAt(currentPointer, t);
+        } else if (currentPointer.inside) {
+          circle(currentPointer.x, currentPointer.y, 7, COLORS.purple);
+        }
+        return card;
+      }
+
+      function sliderValueAt(param, px, bounds) {
+        const ratio = clamp((px - bounds.left) / (bounds.right - bounds.left), 0, 1);
+        if (param === "amplitude") controls.amplitude = 0.2 + ratio * 1.2;
+        if (param === "mass") controls.mass = 0.25 + ratio * 2.75;
+        if (param === "spring") controls.spring = 8 + ratio * 40;
+        if (param === "length") controls.length = 0.25 + ratio * 1.75;
+        if (param === "angle") controls.angle = 5 + ratio * 65;
+        if (param === "track") {
+          controls.trackProgress = ratio;
+          if (Number.isFinite(audio.duration) && audio.duration > 0) {
+            audio.currentTime = ratio * audio.duration;
+            audioOffset = audio.currentTime - timeNow(performance.now()) * audio.playbackRate;
+          }
+        }
+        if (param === "volume") {
+          controls.volume = ratio * 1.2;
+          dragStretch = Math.max(0, controls.volume - 1) * 150;
+          audio.volume = clamp(controls.volume, 0, 1);
+          if (playing && Number.isFinite(audio.duration) && audio.duration > 0) {
+            controls.trackProgress = clamp(audio.currentTime / audio.duration, 0, 1);
+          }
+        }
+      }
+
+      function canvasPoint(event) {
+        const rect = canvas.getBoundingClientRect();
+        return {
+          x: (event.clientX - rect.left) / rect.width * SIZE,
+          y: (event.clientY - rect.top) / rect.height * SIZE
+        };
+      }
+
+      function hitAt(x, y) {
+        const list = Object.entries(lastBounds);
+        for (let i = list.length - 1; i >= 0; i--) {
+          const [name, box] = list[i];
+          if (x >= box.x && x <= box.x + box.w && y >= box.y && y <= box.y + box.h) return { name, ...box };
+        }
+        return null;
+      }
+
+      function setTime(nextTime, pause = true) {
+        cycleTime = ((nextTime % LOOP) + LOOP) % LOOP;
+        if (pause) {
+          playing = false;
+          audio.pause();
+        } else if (playing) {
+          startedAt = performance.now() - cycleTime * 1000;
+          audio.currentTime = audioOffset + cycleTime * audio.playbackRate;
+        }
+        liveRegion.textContent = `박자 ${Math.floor(cycleTime / BEAT) + 1}로 이동했습니다.`;
+      }
+
+      async function togglePlayback() {
+        if (!playing) {
+          if (cycleTime === 0 && !startedAt) cycleTime = 0;
+          startedAt = performance.now() - cycleTime * 1000;
+          audio.currentTime = audioOffset + cycleTime * audio.playbackRate;
+          playing = true;
+          try {
+            await audio.play();
+          } catch (error) {
+            liveRegion.textContent = "음악을 재생할 수 없어요. 재생 버튼을 다시 눌러주세요.";
+          }
+        } else {
+          cycleTime = timeNow(performance.now());
+          playing = false;
+          audio.pause();
+        }
+      }
+
+      function handlePointerDown(event) {
+        const point = canvasPoint(event);
+        currentPointer = { ...point, inside: true, down: true };
+        if (event.isTrusted) canvas.setPointerCapture(event.pointerId);
+        const hit = hitAt(point.x, point.y);
+        const frame = seek(timeNow(performance.now()));
+        if (hit && hit.name.startsWith("beat-")) {
+          setTime(Number(hit.beat) * BEAT);
+          audio.pause();
+          return;
+        }
+        if (hit && hit.name.startsWith("slider-")) {
+          dragging = hit;
+          dragStretch = 0;
+          sliderValueAt(hit.param, point.x, hit);
+          dragVisual = point.x - (hit.left + hit.right) / 2;
+          return;
+        }
+        if (hit && (hit.name === "start" || hit.name === "player")) {
+          controls.saved = false;
+          if (!startedAt && !playing) {
+            cycleTime = 0;
+            togglePlayback();
+          } else {
+            togglePlayback();
+          }
+          return;
+        }
+        if (hit && hit.name === "toggle") {
+          manualMode = (manualMode || frame.mode) === "spring" ? "pendulum" : "spring";
+          controls.mode = manualMode;
+          return;
+        }
+        if (hit && hit.name.startsWith("tabs-")) {
+          manualTab = hit.tab;
+          controls.selectedTab = hit.tab;
+          return;
+        }
+        if (hit && hit.name === "search") {
+          searchFocused = true;
+          searchInput.focus();
+          return;
+        }
+        if (hit && hit.name === "toast") {
+          controls.saved = true;
+          liveRegion.textContent = "현재 실험 조건을 기록했습니다.";
+          return;
+        }
+        if (hit && hit.name === "chart-plot") {
+          hoveredChart = point;
+        }
+      }
+
+      function handlePointerMove(event) {
+        const point = canvasPoint(event);
+        currentPointer = { ...point, inside: true, down: Boolean(dragging) };
+        if (dragging) {
+          sliderValueAt(dragging.param, point.x, dragging);
+          dragVisual = point.x - (dragging.left + dragging.right) / 2;
+        }
+        const hit = hitAt(point.x, point.y);
+        hoveredChart = hit && hit.name === "chart-plot" ? point : null;
+      }
+
+      function handlePointerUp() {
+        if (dragging) {
+          dragging = null;
+          dragReleaseAt = performance.now();
+        }
+        currentPointer.down = false;
+      }
+
+      function handleKey(event) {
+        if (searchFocused) {
+          if (event.key === "Escape") {
+            searchFocused = false;
+            searchInput.blur();
+          }
+          if (event.key === "Enter") {
+            searchFocused = false;
+            searchInput.blur();
+            setTime(24 * BEAT, false);
+          }
+          return;
+        }
+        if (event.code === "Space") {
+          event.preventDefault();
+          togglePlayback();
+        } else if (event.key === "ArrowRight") {
+          setTime(timeNow(performance.now()) + BEAT);
+        } else if (event.key === "ArrowLeft") {
+          setTime(timeNow(performance.now()) - BEAT);
+        } else if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+          event.preventDefault();
+          setTime(22 * BEAT, false);
+          searchFocused = true;
+          searchInput.focus();
+        }
+      }
+
+      searchInput.addEventListener("input", () => {
+        controls.search = searchInput.value;
+      });
+
+      canvas.addEventListener("pointerdown", handlePointerDown);
+      canvas.addEventListener("pointermove", handlePointerMove);
+      canvas.addEventListener("pointerup", handlePointerUp);
+      canvas.addEventListener("pointercancel", handlePointerUp);
+      canvas.addEventListener("pointerleave", () => {
+        if (!dragging) currentPointer.inside = false;
+      });
+      window.addEventListener("keydown", handleKey);
+      window.addEventListener("resize", resize);
+      document.fonts.ready.then(() => draw(cycleTime, performance.now()));
+
+      function frameLoop(now) {
+        const t = timeNow(now);
+        const frame = seek(t);
+        if (frame.beatIndex !== previousBeat) {
+          previousBeat = frame.beatIndex;
+          if (frame.beatIndex === 23) {
+            controls.search = "주기";
+            if (!searchFocused) searchInput.value = "주기";
+          }
+          if (frame.beatIndex === 25) controls.saved = true;
+        }
+        audio.volume = clamp(controls.volume, 0, 1);
+        draw(t, now);
+        requestAnimationFrame(frameLoop);
+      }
+
+      resize();
+      draw(cycleTime, performance.now());
+      document.body.dataset.ready = "true";
+      window.MotionLab = {
+        seek,
+        physics,
+        beats,
+        beatDuration: BEAT,
+        loopDuration: LOOP,
+        renderAt: (t) => {
+          rendering = true;
+          setTime(t);
+          draw(cycleTime, performance.now());
+        },
+        setTime: (t) => {
+          setTime(t);
+          draw(cycleTime, performance.now());
+        },
+        getState: () => ({ ...controls, playing, cycleTime: timeNow(performance.now()), dragStretch })
+      };
+      requestAnimationFrame(frameLoop);
+    })();
+  </script>
+</body>
+</html>
